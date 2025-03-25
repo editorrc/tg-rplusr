@@ -57,7 +57,7 @@ async def add_answer(update: Update, context: CallbackContext):
                 roll_pool.append(answer_number)
 
                 if user_id not in user_answers:
-                    user_answers[user_id] =
+                    user_answers[user_id] = []
                 user_answers[user_id].append(answer_number)
 
                 leaderboard = await format_leaderboard(update, context)
