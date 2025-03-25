@@ -194,3 +194,20 @@ async def clear_ratio(update: Update, context: CallbackContext):
     
     await update.message.reply_text("Таблица лидеров и список ответов очищены.")
     logger.info(f"User {update.effective_user.id} cleared ratio")
+
+def main():
+    application = Application.builder().token(TOKEN).build()
+    
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler(['++', 'плюс', 'да'], add_answer))
+    application.add_handler(CommandHandler(['--', 'минус', 'уд'], remove_answer))
+    application.add_handler(CommandHandler('рр', roll_winner))
+    application.add_handler(CommandHandler('мрр', modify_roll))
+    application.add_handler(CommandHandler('rpr_wladd', add_to_whitelist))
+    application.add_handler(CommandHandler('rpr_wldel', remove_from_whitelist))
+    application.add_handler(CommandHandler('rpr_clearratio', clear_ratio))
+    
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
