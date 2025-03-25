@@ -40,10 +40,7 @@ answer_list = []
 roll_pool = []
 
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text(
-        chat_id=update.effective_chat.id,
-        text="Привет! Я бот для учета правильных ответов и розыгрыша победителя. Используйте команды ++, --, рр, мрр, /rpr_wladd, /rpr_wldel и /rpr_clearratio."
-    )
+    await update.message.reply_text("Привет! Я бот для учета правильных ответов и розыгрыша победителя. Используйте команды ++, --, рр, мрр, /rpr_wladd, /rpr_wldel и /rpr_clearratio.")
 
 async def add_answer(update: Update, context: CallbackContext):
     try:
