@@ -8,7 +8,7 @@ import random
 TOKEN = os.getenv("BOT_TOKEN")
 
 # Белый список ID пользователей, которые могут запускать игру
-dealer_whitelist = {7780504410}  # Замените YOUR_ADMIN_USER_ID на свой ID
+whitelist = {7780504410}  # Замените YOUR_ADMIN_USER_ID на свой ID
 
 # Включаем логирование
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -20,7 +20,7 @@ roll_pool = []
 
 async def add_answer(update: Update, context: CallbackContext):
     try:
-        if update.effective_user.id not in dealer_whitelist:
+        if update.effective_user.id not in whitelist:
             return
         
         user_id = update.effective_user.id
@@ -40,7 +40,7 @@ async def add_answer(update: Update, context: CallbackContext):
 
 async def remove_answer(update: Update, context: CallbackContext):
     try:
-        if update.effective_user.id not in dealer_whitelist:
+        if update.effective_user.id not in whitelist:
             return
         
         try:
@@ -62,7 +62,7 @@ async def remove_answer(update: Update, context: CallbackContext):
 
 async def roll_winner(update: Update, context: CallbackContext):
     try:
-        if update.effective_user.id not in dealer_whitelist:
+        if update.effective_user.id not in whitelist:
             return
         
         if not roll_pool:
@@ -88,7 +88,7 @@ async def roll_winner(update: Update, context: CallbackContext):
 
 async def modify_roll(update: Update, context: CallbackContext):
     try:
-        if update.effective_user.id not in dealer_whitelist:
+        if update.effective_user.id not in whitelist:
             return
         
         try:
@@ -117,21 +117,3 @@ async def format_leaderboard(update: Update, context: CallbackContext):
         username = (await context.bot.get_chat_member(update.effective_chat.id, user_id)).user.username
         answer_numbers = ", ".join(str(answer) for answer in answers)
         leaderboard += f"{i + 1} | @{username} | {len(answers)} | {answer_numbers}\n"
-    
-    return leaderboard
-
-async def format_winner(winner_number, winner_username):
-    return f"Победитель: {winner_number} (@{winner_username})"
-
-def main():
-    application = Application.builder().token(TOKEN).build()
-    
-    application.add_handler(CommandHandler(['++', 'плюс', 'да'], add_answer))
-    application.add_handler(CommandHandler(['--', 'минус', 'уд'], remove_answer))
-    application.add_handler(CommandHandler('рр', roll_winner))
-    application.add_handler(CommandHandler('мрр', modify_roll))
-    
-    application.run_polling()
-
-if __name__ == '__main__':
-    main()
