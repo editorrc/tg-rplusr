@@ -46,17 +46,20 @@ async def add_answer(update: Update, context: CallbackContext):
         if update.effective_user.id not in whitelist:
             return
         
-        user_id = update.effective_user.id
-        answer_number = len(answer_list) + 1
-        answer_list.append(answer_number)
-        roll_pool.append(answer_number)
-        
-        if user_id not in user_answers:
-            user_answers[user_id] = []
-        user_answers[user_id].append(answer_number)
-        
-        await update.message.reply_text(format_leaderboard(update, context))
-        logger.info(f"User {update.effective_user.id} added answer {answer_number}")
+        if update.message.text in ['++', 'плюс', 'да']: # Исправлено здесь
+            user_id = update.effective_user.id
+            answer_number = len(answer_list) + 1
+            answer_list.append(answer_number)
+            roll_pool.append(answer_number)
+            
+            if user_id not in user_answers:
+                user_answers[user_id] = []
+            user_answers[user_id].append(answer_number)
+            
+            await update.message.reply_text(format_leaderboard(update, context))
+            logger.info(f"User {update.effective_user.id} added answer {answer_number}")
+        else:
+            await update.message.reply_text("Используйте команды ++ или плюс.")
     except Exception as e:
         logger.error(f"Error in add_answer: {e}")
         await update.message.reply_text("Произошла ошибка при добавлении ответа.")
@@ -66,31 +69,34 @@ async def remove_answer(update: Update, context: CallbackContext):
         if update.effective_user.id not in whitelist:
             return
         
-        try:
-            answer_number = int(context.args[0])
-            if answer_number in answer_list:
-                answer_list.remove(answer_number)
-                for user_id, answers in user_answers.items():
-                    if answer_number in answers:
-                        answers.remove(answer_number)
+        if update.message.text.startswith('--') or update.message.text.startswith('минус') or update.message.text.startswith('уд'): # Исправлено здесь
+            try:
+                answer_number = int(context.args[0])
+                if answer_number in answer_list:
+                    answer_list.remove(answer_number)
+                    for user_id, answers in user_answers.items():
+                        if answer_number in answers:
+                            answers.remove(answer_number)
 
-                # Обновляем номера оставшихся ответов
-                for i in range(len(answer_list)):
-                    if answer_list[i] > answer_number:
-                        answer_list[i] -= 1
+                    # Обновляем номера оставшихся ответов
+                    for i in range(len(answer_list)):
+                        if answer_list[i] > answer_number:
+                            answer_list[i] -= 1
 
-                # Обновляем номера ответов в user_answers
-                for user_id, answers in user_answers.items():
-                    for i in range(len(answers)):
-                        if answers[i] > answer_number:
-                            answers[i] -= 1
+                    # Обновляем номера ответов в user_answers
+                    for user_id, answers in user_answers.items():
+                        for i in range(len(answers)):
+                            if answers[i] > answer_number:
+                                answers[i] -= 1
 
-                await update.message.reply_text(format_leaderboard(update, context))
-                logger.info(f"User {update.effective_user.id} removed answer {context.args[0]}")
-            else:
-                await update.message.reply_text("Ответ с таким номером не найден.")
-        except (ValueError, IndexError):
-            await update.message.reply_text("Используйте: -- <номер ответа>")
+                    await update.message.reply_text(format_leaderboard(update, context))
+                    logger.info(f"User {update.effective_user.id} removed answer {context.args[0]}")
+                else:
+                    await update.message.reply_text("Ответ с таким номером не найден.")
+            except (ValueError, IndexError):
+                await update.message.reply_text("Используйте: -- <номер ответа>")
+        else:
+            await update.message.reply_text("Используйте команды --, минус или уд.")
     except Exception as e:
         logger.error(f"Error in remove_answer: {e}")
         await update.message.reply_text("Произошла ошибка при удалении ответа.")
@@ -199,7 +205,7 @@ def main():
     application = Application.builder().token(TOKEN).build()
     
     application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler(['++', 'плюс', 'да'], add_answer))
+    application.add_handler(CommandHandler(['++', 'плюс'], add_answer)) # Исправлено здесь
     application.add_handler(CommandHandler(['--', 'минус', 'уд'], remove_answer))
     application.add_handler(CommandHandler('рр', roll_winner))
     application.add_handler(CommandHandler('мрр', modify_roll))
