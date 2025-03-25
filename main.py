@@ -48,7 +48,9 @@ async def add_answer(update: Update, context: CallbackContext):
             return
 
         command = update.message.text.strip().lower()
-        if command in ["++", "плюс"]:
+        logger.info(f"Получен текст: {command}")  # ✅ Логируем текст
+
+        if command in ["++", "плюс", "/rnr_plus"]:  # Добавили /rnr_plus
             user_id = update.effective_user.id
             answer_number = len(answer_list) + 1
             answer_list.append(answer_number)
@@ -58,10 +60,11 @@ async def add_answer(update: Update, context: CallbackContext):
                 user_answers[user_id] = []
             user_answers[user_id].append(answer_number)
 
-            await update.message.reply_text(await format_leaderboard(update, context))
+            await update.message.reply_text(f"Добавлен ответ №{answer_number}")
             logger.info(f"User {user_id} added answer {answer_number}")
         else:
-            await update.message.reply_text("Используйте команду /плюс.")
+            await update.message.reply_text("Используйте команду /плюс или ++.")
+
     except Exception as e:
         logger.error(f"Error in add_answer: {e}")
         await update.message.reply_text("Произошла ошибка при добавлении ответа.")
@@ -216,21 +219,25 @@ def main():
     application = (
         Application.builder()
         .token(TOKEN)
-        .connect_timeout(20)  # Увеличенные таймауты
+        .connect_timeout(20)
         .read_timeout(20)
         .build()
     )
-    
-    application.add_handler(CommandHandler('rnr_toggle', start))
-    application.add_handler(CommandHandler('rnr_plus', add_answer))
-    application.add_handler(CommandHandler('rnr_minus', remove_answer))
-    application.add_handler(CommandHandler('rnr', roll_winner))
-    application.add_handler(CommandHandler('rnr_del', modify_roll))
-    application.add_handler(CommandHandler('rpr_wladd', add_to_whitelist))
-    application.add_handler(CommandHandler('rpr_wldel', remove_from_whitelist))
-    application.add_handler(CommandHandler('rpr_clearratio', clear_ratio))
-    
+
+    # Команды
+    application.add_handler(CommandHandler("rnr_toggle", start))
+    application.add_handler(CommandHandler(["rnr_plus", "плюс"], add_answer))  # Теперь бот понимает /плюс
+    application.add_handler(CommandHandler("rnr_minus", remove_answer))
+    application.add_handler(CommandHandler("rnr", roll_winner))
+    application.add_handler(CommandHandler("rnr_del", modify_roll))
+    application.add_handler(CommandHandler("rpr_wladd", add_to_whitelist))
+    application.add_handler(CommandHandler("rpr_wldel", remove_from_whitelist))
+    application.add_handler(CommandHandler("rpr_clearratio", clear_ratio))
+
+    # Ловим `++` как текст (не команду!)
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^\+\+$"), add_answer))
+
     application.run_polling()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
