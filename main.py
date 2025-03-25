@@ -48,9 +48,8 @@ async def add_answer(update: Update, context: CallbackContext):
             return
 
         command = update.message.text.strip().lower()
-        logger.info(f"Получен текст: {command}")  # ✅ Логируем текст
 
-        if command in ["++", "плюс", "/rnr_plus"]:  # Добавили /rnr_plus
+        if command in ["++", "плюс"]:
             user_id = update.effective_user.id
             answer_number = len(answer_list) + 1
             answer_list.append(answer_number)
@@ -60,8 +59,11 @@ async def add_answer(update: Update, context: CallbackContext):
                 user_answers[user_id] = []
             user_answers[user_id].append(answer_number)
 
-            await update.message.reply_text(f"Добавлен ответ №{answer_number}")
+            leaderboard = await format_leaderboard(update, context)
+            await update.message.reply_text(leaderboard)
+
             logger.info(f"User {user_id} added answer {answer_number}")
+
         else:
             await update.message.reply_text("Используйте команду /плюс или ++.")
 
@@ -163,16 +165,24 @@ async def modify_roll(update: Update, context: CallbackContext):
         await update.message.reply_text("Произошла ошибка при изменении розыгрыша.")
 
 async def format_leaderboard(update: Update, context: CallbackContext):
-    leaderboard = " *Таблица лидеров* \n\n"
-    leaderboard += "№ | Пользователь | Баллы | Ответы\n"
-    leaderboard += "---|---|---|---\n"
-    
-    # Сортировка по количеству ответов
-    for i, (user_id, answers) in enumerate(sorted(user_answers.items(), key=lambda item: len(item[1]), reverse=True)):
-        username = (await context.bot.get_chat_member(update.effective_chat.id, user_id)).user.username
-        answer_numbers = ", ".join(str(answer) for answer in answers)
-        leaderboard += f"{i + 1} | @{username} | {len(answers)} | {answer_numbers}\n"
-    
+    if not user_answers:
+        return "🏆 Таблица рейтинга пуста."
+
+    leaderboard = "🏆 *Таблица лидеров* 🏆\n\n"
+    leaderboard += "№ | Пользователь | Баллы\n"
+    leaderboard += "---|--------------|------\n"
+
+    sorted_users = sorted(user_answers.items(), key=lambda item: len(item[1]), reverse=True)
+
+    for i, (user_id, answers) in enumerate(sorted_users, start=1):
+        try:
+            user = await context.bot.get_chat(user_id)
+            username = f"@{user.username}" if user.username else user.full_name
+        except Exception:
+            username = f"ID {user_id}"
+
+        leaderboard += f"{i}. {username} - {len(answers)} баллов\n"
+
     return leaderboard
 
 async def format_winner(winner_number, winner_username):
