@@ -1,6 +1,6 @@
 import os
 import logging
-from telegram import Update
+from telegram import Update, Request
 from telegram.ext import Application, CommandHandler, CallbackContext
 import random
 import json
@@ -216,11 +216,12 @@ async def clear_ratio(update: Update, context: CallbackContext):
     logger.info(f"User {update.effective_user.id} cleared ratio")
 
 def main():
-    application = Application.builder().token(TOKEN).build()
+    req = Request(connect_timeout=20, read_timeout=20)
+    application = Application.builder().token(TOKEN).request(req).build()
     
     application.add_handler(CommandHandler('rnr_toggle', start))
-    application.add_handler(CommandHandler('rnr_plus', add_answer))  # Команда для добавления ответа
-    application.add_handler(CommandHandler('rnr_minus', remove_answer))  # Исправлена ошибка синтаксиса
+    application.add_handler(CommandHandler('rnr_plus', add_answer))
+    application.add_handler(CommandHandler('rnr_minus', remove_answer))
     application.add_handler(CommandHandler('rnr', roll_winner))
     application.add_handler(CommandHandler('rnr_del', modify_roll))
     application.add_handler(CommandHandler('rpr_wladd', add_to_whitelist))
