@@ -1,7 +1,6 @@
 import os
 import logging
 from telegram import Update
-from telegram.request import Request
 from telegram.ext import Application, CommandHandler, CallbackContext
 import random
 import json
