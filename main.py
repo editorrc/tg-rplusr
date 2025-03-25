@@ -142,3 +142,55 @@ async def modify_roll(update: Update, context: CallbackContext):
     except Exception as e:
         logger.error(f"Error in modify_roll: {e}")
         await update.message.reply_text("Произошла ошибка при изменении розыгрыша.")
+        
+async def format_leaderboard(update: Update, context: CallbackContext):
+    leaderboard = " *Таблица лидеров* \n\n"
+    leaderboard += "№ | Пользователь | Баллы | Ответы\n"
+    leaderboard += "---|---|---|---\n"
+    
+    for i, (user_id, answers) in enumerate(sorted(user_answers.items(), key=lambda item: len(item[1]), reverse=True)):
+        username = (await context.bot.get_chat_member(update.effective_chat.id, user_id)).user.username
+        answer_numbers = ", ".join(str(answer) for answer in answers)
+        leaderboard += f"{i + 1} | @{username} | {len(answers)} | {answer_numbers}\n"
+    
+    return leaderboard
+
+async def format_winner(winner_number, winner_username):
+    return f"Победитель: {winner_number} (@{winner_username})"
+
+async def add_to_whitelist(update: Update, context: CallbackContext):
+    if update.effective_user.id not in whitelist:
+        return
+    
+    try:
+        user_id = int(context.args[0])
+        whitelist.add(user_id)
+        await update.message.reply_text(f"Пользователь {user_id} добавлен в вайтлист.")
+        logger.info(f"User {update.effective_user.id} added {user_id} to whitelist")
+        save_whitelist(whitelist)
+    except (ValueError, IndexError):
+        await update.message.reply_text("Используйте: /rpr_wladd <id пользователя>")
+
+async def remove_from_whitelist(update: Update, context: CallbackContext):
+    if update.effective_user.id not in whitelist:
+        return
+    
+    try:
+        user_id = int(context.args[0])
+        whitelist.discard(user_id)
+        await update.message.reply_text(f"Пользователь {user_id} удален из вайтлиста.")
+        logger.info(f"User {update.effective_user.id} removed {user_id} from whitelist")
+        save_whitelist(whitelist)
+    except (ValueError, IndexError):
+        await update.message.reply_text("Используйте: /rpr_wldel <id пользователя>")
+
+async def clear_ratio(update: Update, context: CallbackContext):
+    if update.effective_user.id not in whitelist:
+        return
+    
+    user_answers.clear()
+    answer_list.clear()
+    roll_pool.clear()
+    
+    await update.message.reply_text("Таблица лидеров и список ответов очищены.")
+    logger.info(f"User {update.effective_user.id} cleared ratio")
