@@ -224,9 +224,9 @@ def main():
         .build()
     )
 
-    # Команды
+    # Команды (только латиница!)
     application.add_handler(CommandHandler("rnr_toggle", start))
-    application.add_handler(CommandHandler(["rnr_plus", "плюс"], add_answer))  # Теперь бот понимает /плюс
+    application.add_handler(CommandHandler("rnr_plus", add_answer))  # ✅ Убрали "плюс"
     application.add_handler(CommandHandler("rnr_minus", remove_answer))
     application.add_handler(CommandHandler("rnr", roll_winner))
     application.add_handler(CommandHandler("rnr_del", modify_roll))
@@ -234,8 +234,9 @@ def main():
     application.add_handler(CommandHandler("rpr_wldel", remove_from_whitelist))
     application.add_handler(CommandHandler("rpr_clearratio", clear_ratio))
 
-    # Ловим `++` как текст (не команду!)
+    # Ловим "++" и "плюс" как обычный текст
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^\+\+$"), add_answer))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"(?i)^плюс$"), add_answer))
 
     application.run_polling()
 
