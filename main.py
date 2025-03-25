@@ -50,19 +50,24 @@ async def add_answer(update: Update, context: CallbackContext):
         command = update.message.text.strip().lower()
 
         if command in ["++", "плюс"]:
-            user_id = update.effective_user.id
-            answer_number = len(answer_list) + 1
-            answer_list.append(answer_number)
-            roll_pool.append(answer_number)
+            if update.message.reply_to_message:
+                user_id = update.message.reply_to_message.from_user.id
+                answer_number = len(answer_list) + 1
+                answer_list.append(answer_number)
+                roll_pool.append(answer_number)
 
-            if user_id not in user_answers:
-                user_answers[user_id] = []
-            user_answers[user_id].append(answer_number)
+                if user_id not in user_answers:
+                    user_answers[user_id] =
+                user_answers[user_id].append(answer_number)
 
-            leaderboard = await format_leaderboard(update, context)
-            await update.message.reply_text(leaderboard)
-
-            logger.info(f"User {user_id} added answer {answer_number}")
+                leaderboard = await format_leaderboard(update, context)
+                user = await context.bot.get_chat(user_id)
+                username = f"@{user.username}" if user.username else user.full_name
+                await update.message.reply_text(f"Балл №{answer_number} добавлен пользователю {username}\n\n{leaderboard}")
+                logger.info(f"User {user_id} added answer {answer_number}")
+            else:
+                leaderboard = await format_leaderboard(update, context)
+                await update.message.reply_text(leaderboard)
 
         else:
             await update.message.reply_text("Используйте команду /плюс или ++.")
@@ -70,7 +75,7 @@ async def add_answer(update: Update, context: CallbackContext):
     except Exception as e:
         logger.error(f"Error in add_answer: {e}")
         await update.message.reply_text("Произошла ошибка при добавлении ответа.")
-
+        
 async def remove_answer(update: Update, context: CallbackContext):
     try:
         if update.effective_user.id not in whitelist:
