@@ -216,8 +216,13 @@ async def clear_ratio(update: Update, context: CallbackContext):
     logger.info(f"User {update.effective_user.id} cleared ratio")
 
 def main():
-    req = Request(connect_timeout=20, read_timeout=20)
-    application = Application.builder().token(TOKEN).request(req).build()
+    application = (
+        Application.builder()
+        .token(TOKEN)
+        .connect_timeout(20)  # Увеличенные таймауты
+        .read_timeout(20)
+        .build()
+    )
     
     application.add_handler(CommandHandler('rnr_toggle', start))
     application.add_handler(CommandHandler('rnr_plus', add_answer))
