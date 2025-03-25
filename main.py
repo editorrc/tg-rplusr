@@ -41,25 +41,30 @@ async def start(update: Update, context: CallbackContext):
         text="Привет! Я бот для учета правильных ответов и розыгрыша победителя. Используйте команды ++, --, рр, мрр, /rpr_wladd, /rpr_wldel и /rpr_clearratio."
     )
 
+from telegram import Update
+from telegram.ext import CallbackContext
+
 async def add_answer(update: Update, context: CallbackContext):
     try:
         if update.effective_user.id not in whitelist:
             return
         
-        if update.message.text in ['++', 'плюс', 'да']: # Исправлено здесь
+        command = update.message.text.strip().lower()  # Приводим команду к нижнему регистру
+
+        if command in ["++", "плюс"]:  # Проверяем только текст
             user_id = update.effective_user.id
             answer_number = len(answer_list) + 1
             answer_list.append(answer_number)
             roll_pool.append(answer_number)
-            
+
             if user_id not in user_answers:
                 user_answers[user_id] = []
             user_answers[user_id].append(answer_number)
-            
+
             await update.message.reply_text(format_leaderboard(update, context))
-            logger.info(f"User {update.effective_user.id} added answer {answer_number}")
+            logger.info(f"User {user_id} added answer {answer_number}")
         else:
-            await update.message.reply_text("Используйте команды ++ или плюс.")
+            await update.message.reply_text("Используйте команду /плюс.")
     except Exception as e:
         logger.error(f"Error in add_answer: {e}")
         await update.message.reply_text("Произошла ошибка при добавлении ответа.")
@@ -69,34 +74,46 @@ async def remove_answer(update: Update, context: CallbackContext):
         if update.effective_user.id not in whitelist:
             return
         
-        if update.message.text.startswith('--') or update.message.text.startswith('минус') or update.message.text.startswith('уд'): # Исправлено здесь
+        command = update.message.text.strip().lower()  # Убираем пробелы и приводим к нижнему регистру
+
+        if command.startswith("--") or command.startswith("минус") or command.startswith("уд"):
+            if not context.args:
+                await update.message.reply_text("Используйте: /минус <номер ответа>")
+                return
+
             try:
                 answer_number = int(context.args[0])
-                if answer_number in answer_list:
-                    answer_list.remove(answer_number)
-                    for user_id, answers in user_answers.items():
-                        if answer_number in answers:
-                            answers.remove(answer_number)
 
-                    # Обновляем номера оставшихся ответов
-                    for i in range(len(answer_list)):
-                        if answer_list[i] > answer_number:
-                            answer_list[i] -= 1
-
-                    # Обновляем номера ответов в user_answers
-                    for user_id, answers in user_answers.items():
-                        for i in range(len(answers)):
-                            if answers[i] > answer_number:
-                                answers[i] -= 1
-
-                    await update.message.reply_text(format_leaderboard(update, context))
-                    logger.info(f"User {update.effective_user.id} removed answer {context.args[0]}")
-                else:
+                if answer_number not in answer_list:
                     await update.message.reply_text("Ответ с таким номером не найден.")
-            except (ValueError, IndexError):
-                await update.message.reply_text("Используйте: -- <номер ответа>")
+                    return
+                
+                answer_list.remove(answer_number)
+
+                # Удаление ответа из списка ответов пользователей
+                for user_id, answers in user_answers.items():
+                    if answer_number in answers:
+                        answers.remove(answer_number)
+
+                # Корректировка номеров оставшихся ответов
+                for i in range(len(answer_list)):
+                    if answer_list[i] > answer_number:
+                        answer_list[i] -= 1
+
+                # Коррекция номеров в user_answers
+                for user_id, answers in user_answers.items():
+                    for j in range(len(answers)):
+                        if answers[j] > answer_number:
+                            answers[j] -= 1
+
+                await update.message.reply_text(format_leaderboard(update, context))
+                logger.info(f"User {update.effective_user.id} removed answer {answer_number}")
+
+            except ValueError:
+                await update.message.reply_text("Неверный формат. Используйте: /минус <номер ответа>")
         else:
-            await update.message.reply_text("Используйте команды --, минус или уд.")
+            await update.message.reply_text("Используйте команду /минус, /уд или -- <номер ответа>.")
+    
     except Exception as e:
         logger.error(f"Error in remove_answer: {e}")
         await update.message.reply_text("Произошла ошибка при удалении ответа.")
@@ -204,11 +221,11 @@ async def clear_ratio(update: Update, context: CallbackContext):
 def main():
     application = Application.builder().token(TOKEN).build()
     
-    application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler(['++', 'плюс'], add_answer)) # Исправлено здесь
-    application.add_handler(CommandHandler(['--', 'минус', 'уд'], remove_answer))
-    application.add_handler(CommandHandler('рр', roll_winner))
-    application.add_handler(CommandHandler('мрр', modify_roll))
+    application.add_handler(CommandHandler('rnr_toggle', start))
+    application.add_handler(CommandHandler('rnr_plus', add_answer)) # Исправлено здесь
+    application.add_handler(CommandHandler('rnr_minus'], remove_answer))
+    application.add_handler(CommandHandler('rnr', roll_winner))
+    application.add_handler(CommandHandler('rnr_del', modify_roll))
     application.add_handler(CommandHandler('rpr_wladd', add_to_whitelist))
     application.add_handler(CommandHandler('rpr_wldel', remove_from_whitelist))
     application.add_handler(CommandHandler('rpr_clearratio', clear_ratio))
