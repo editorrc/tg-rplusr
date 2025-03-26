@@ -44,9 +44,13 @@ def save_bot_state():
         "answer_list": answer_list,
         "roll_pool": roll_pool
     }
-    with open(ANSWERS_FILE, "w") as f:
-        json.dump(state, f)
-
+    try:
+        with open(ANSWERS_FILE, "w") as f:
+            json.dump(state, f, indent=4)
+        logging.info(f"✅ Данные сохранены: {state}")  # <-- Добавлен лог
+    except Exception as e:
+        logging.error(f"❌ Ошибка при сохранении данных: {e}")
+        
 def load_bot_state():
     """Загрузка состояния бота"""
     global user_answers, answer_list, roll_pool
