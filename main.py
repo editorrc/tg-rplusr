@@ -295,7 +295,8 @@ def main():
 
     # Розыгрыш и управление
     application.add_handler(CommandHandler("rpr", roll_winner))
-    application.add_handler(CommandHandler("мрр", modify_roll))
+    application.add_handler(CommandHandler("rpr_modify", modify_roll))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^мрр$"), modify_roll))
 
     # Управление белым списком
     application.add_handler(CommandHandler("rpr_wladd", add_to_whitelist))
