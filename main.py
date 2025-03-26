@@ -73,42 +73,35 @@ async def start(update: Update, context: CallbackContext):
         "/rnr - розыгрыш победителя"
     )
 
-async def _format_leaderboard():
+async def _format_leaderboard(user_answers, context):
     """Форматирование таблицы лидеров"""
     if not user_answers:
         return "🏆 Таблица лидеров пуста."
 
     leaderboard = "🏆 *Таблица лидеров* 🏆\n\n"
 
-    # Перечень всех ответов с номерами
-    all_answers = []
-    for user_id, answers in user_answers.items():
-        username = f"ID {user_id}"  # Имена будут добавлены позже
-        for answer in answers:
-            all_answers.append((answer, username))
+    sorted_users = sorted(user_answers.items(), key=lambda item: len(item[1]), reverse=True)
 
-    all_answers.sort()  # Сортируем по номеру ответа
-    answer_list_str = "\n".join([f"{num}. {user}" for num, user in all_answers])
+    for i, (user_id, answers) in enumerate(sorted_users, start=1):
+        try:
+            user = await context.bot.get_chat(user_id)
+            username = f"@{user.username}" if user.username else user.full_name
+        except Exception:
+            username = f"ID {user_id}"
 
-    # Сумма баллов для каждого игрока
-    user_scores = {}
-    for user_id, answers in user_answers.items():
-        user_scores[user_id] = len(answers)
+        leaderboard += f"{i}. {username} - {len(answers)} баллов\n"
 
-    sorted_users = sorted(user_scores.items(), key=lambda item: item[1], reverse=True)
-    scores_str = "\n".join([f"@{user_id} — {score} баллов" for user_id, score in sorted_users])
-
-    return f"{leaderboard}{answer_list_str}\n\n📊 *Сводка по баллам:*\n{scores_str}"
+    return leaderboard
 
 async def show_leaderboard(update: Update, context: CallbackContext):
     """Показ таблицы лидеров"""
     if update.effective_user.id not in whitelist:
         return
 
-    leaderboard = await _format_leaderboard()
+    leaderboard = await _format_leaderboard(user_answers, context)  # Передаем context
     await update.message.reply_text(leaderboard, parse_mode='Markdown')
     save_bot_state()
-
+    
 async def add_answer(update: Update, context: CallbackContext):
     """Добавление ответа или показ таблицы лидеров"""
     if update.effective_user.id not in whitelist:
