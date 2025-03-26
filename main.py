@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 # Глобальные переменные для хранения состояния
 user_answers = {}
-answer_list = []
-roll_pool = []
+answer_list =
+roll_pool =
 
 def load_whitelist():
     """Загрузка белого списка"""
@@ -55,36 +55,20 @@ def load_bot_state():
             user_answers = state.get("user_answers", {})
             answer_list = state.get("answer_list", [])
             roll_pool = state.get("roll_pool", [])
-    except FileNotFoundError:
-        # Инициализация пустыми структурами, если файл не найден
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.error(f"Ошибка при чтении {ANSWERS_FILE}. Используются пустые значения.")
         user_answers, answer_list, roll_pool = {}, [], []
 
 # Загрузка данных при старте
 whitelist = load_whitelist()
 load_bot_state()
 
-async def start(update: Update, context: CallbackContext):
-    """Стартовая команда"""
-    await update.message.reply_text(
-        "Привет! Я бот для учета правильных ответов и розыгрыша.\n"
-        "Основные команды:\n"
-        "++ - добавить ответ\n"
-        "/rprlb - показать таблицу лидеров\n"
-        "/rnr - розыгрыш победителя"
-    )
-
-async def show_leaderboard(update: Update, context: CallbackContext):
-    """Показ таблицы лидеров"""
-    if update.effective_user.id not in whitelist:
-        return
-
+async def _format_leaderboard(user_answers, context):
+    """Форматирование таблицы лидеров"""
     if not user_answers:
-        await update.message.reply_text("🏆 Таблица рейтинга пуста.")
-        return
+        return "🏆 Таблица рейтинга пуста."
 
     leaderboard = "🏆 *Таблица лидеров* 🏆\n\n"
-    leaderboard += "№ | Пользователь | Баллы\n"
-    leaderboard += "---|--------------|------\n"
 
     sorted_users = sorted(user_answers.items(), key=lambda item: len(item[1]), reverse=True)
 
@@ -97,6 +81,14 @@ async def show_leaderboard(update: Update, context: CallbackContext):
 
         leaderboard += f"{i}. {username} - {len(answers)} баллов\n"
 
+    return leaderboard
+
+async def show_leaderboard(update: Update, context: CallbackContext):
+    """Показ таблицы лидеров"""
+    if update.effective_user.id not in whitelist:
+        return
+
+    leaderboard = await _format_leaderboard(user_answers, context)
     await update.message.reply_text(leaderboard, parse_mode='Markdown')
     save_bot_state()
 
@@ -108,16 +100,10 @@ async def add_answer(update: Update, context: CallbackContext):
 
         command = update.message.text.strip().lower()
 
-        if command in ["++", "плюс", "/rprlb", "/rpr_table"]:
-            # Если команда без ответа на сообщение - показываем таблицу
-            if not update.message.reply_to_message and command in ["/rprlb", "/rpr_table"]:
-                await show_leaderboard(update, context)
-                return
-
+        if command in ["++", "плюс"]:
             if update.message.reply_to_message:
-                # Проверка лимита в 100 ответов
                 if len(answer_list) >= 100:
-                    await update.message.reply_text("Достигнут максимальный лимит в 100 ответов.")
+                    await update.message.reply_text("Достигнут лимит в 100 ответов.")
                     return
 
                 user_id = update.message.reply_to_message.from_user.id
@@ -139,15 +125,17 @@ async def add_answer(update: Update, context: CallbackContext):
                 await update.message.reply_text(response)
                 save_bot_state()
             else:
-                # Если просто ++ без ответа - показываем таблицу
                 await show_leaderboard(update, context)
+
+        elif command in ["/rprlb", "/rpr_table"]:
+            await show_leaderboard(update, context)
 
         else:
             await update.message.reply_text("Используйте команду /плюс или ++.")
 
     except Exception as e:
-        logger.error(f"Error in add_answer: {e}")
-        await update.message.reply_text("Произошла ошибка при добавлении ответа.")
+        logger.error(f"Ошибка в add_answer: {e}")
+        await update.message.reply_text("Ошибка при добавлении ответа.")
 
 async def remove_answer(update: Update, context: CallbackContext):
     """Удаление ответа"""
@@ -182,6 +170,9 @@ async def remove_answer(update: Update, context: CallbackContext):
 
     except (ValueError, IndexError):
         await update.message.reply_text("Используйте: /минус <номер ответа>")
+    except Exception as e:
+        logger.error(f"Error in remove_answer: {e}")
+        await update.message.reply_text("Произошла ошибка при удалении ответа.")
 
 async def roll_winner(update: Update, context: CallbackContext):
     """Розыгрыш победителя"""
@@ -205,7 +196,7 @@ async def roll_winner(update: Update, context: CallbackContext):
             winner_username = f"@{winner.username}" if winner.username else winner.full_name
         except Exception:
             winner_username = f"ID {winner_user_id}"
-        
+
         await update.message.reply_text(f"Победитель: {winner_number} ({winner_username})")
     else:
         await update.message.reply_text("Не удалось определить победителя.")
@@ -217,16 +208,16 @@ async def modify_roll(update: Update, context: CallbackContext):
 
     try:
         target_user_id = int(context.args[0]) if context.args[0].isdigit() else (await context.bot.get_chat_member(update.effective_chat.id, context.args[0][1:])).user.id
-        
+
         if target_user_id in user_answers:
             # Удаляем все ответы пользователя из roll_pool
             for answer in user_answers[target_user_id]:
                 if answer in roll_pool:
                     roll_pool.remove(answer)
-            
+
             del user_answers[target_user_id]
             save_bot_state()
-            
+
             await update.message.reply_text("Пользователь исключен из розыгрыша.")
         else:
             await update.message.reply_text("Пользователь не найден.")
@@ -287,15 +278,15 @@ def main():
     application.add_handler(CommandHandler("rprun", start))
     application.add_handler(CommandHandler("rprlb", show_leaderboard))
     application.add_handler(CommandHandler("rpr_table", show_leaderboard))
-    
+
     # Обработчики для добавления и удаления ответов
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^\+\+$|^плюс$"), add_answer))
     application.add_handler(CommandHandler("минус", remove_answer))
-    
+
     # Розыгрыш и управление
     application.add_handler(CommandHandler("rpr", roll_winner))
     application.add_handler(CommandHandler("мрр", modify_roll))
-    
+
     # Управление белым списком
     application.add_handler(CommandHandler("rpr_wladd", add_to_whitelist))
     application.add_handler(CommandHandler("rpr_wldel", remove_from_whitelist))
