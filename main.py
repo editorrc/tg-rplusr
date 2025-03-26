@@ -221,10 +221,12 @@ async def roll_winner(update: Update, context: CallbackContext):
         return
 
     winner_number = random.choice(roll_pool)
+    logger.info(f"Выбран номер победителя: {winner_number}") # Добавлено логирование
     winner_user_id = None
     for user_id, answers in user_answers.items():
         if winner_number in answers:
             winner_user_id = user_id
+            logger.info(f"Найден пользователь-победитель: {winner_user_id}") # Добавлено логирование
             break
 
     if winner_user_id:
