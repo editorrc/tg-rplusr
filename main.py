@@ -278,9 +278,9 @@ def main():
     application.add_handler(CommandHandler("rprlb", show_leaderboard))
     application.add_handler(CommandHandler("rpr_table", show_leaderboard))
 
-    # Обработчики для добавления и удаления ответов
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^\+\+$|^плюс$"), add_answer))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^минус$"), remove_answer))
+    # Обработчики для добавления и удаления ответов (теперь с альтернативными командами)
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^\+\+$|^плюс$|^/add$|^/plus$"), add_answer))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^минус$|^/минус$|^/remove$|^/del$"), remove_answer))
 
     # Розыгрыш и управление
     application.add_handler(CommandHandler("rpr", roll_winner))
