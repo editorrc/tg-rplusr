@@ -133,12 +133,12 @@ async def add_answer(update: Update, context: CallbackContext):
         await show_leaderboard(update, context)
 
 async def remove_answer(update: Update, context: CallbackContext):
-    """Удаление ответа"""
+    """Удаление ответа по номеру"""
     if update.effective_user.id not in whitelist:
         return
 
     try:
-        answer_number = int(context.args[0])
+        answer_number = int(context.args[0])  # Получаем номер балла
         if answer_number not in answer_list:
             await update.message.reply_text("Ответ с таким номером не найден.")
             return
@@ -148,12 +148,16 @@ async def remove_answer(update: Update, context: CallbackContext):
             roll_pool.remove(answer_number)
 
         # Удаляем ответ у всех пользователей
-        for user_id in list(user_answers.keys()):
-            if answer_number in user_answers[user_id]:
-                user_answers[user_id].remove(answer_number)
-                # Удаляем пользователя, если у него больше нет ответов
-                if not user_answers[user_id]:
-                    del user_answers[user_id]
+        user_to_delete = None
+        for user_id, answers in list(user_answers.items()):
+            if answer_number in answers:
+                answers.remove(answer_number)
+                # Если у пользователя больше нет баллов, удаляем его
+                if not answers:
+                    user_to_delete = user_id
+
+        if user_to_delete:
+            del user_answers[user_to_delete]
 
         # Корректировка номеров оставшихся ответов
         corrected_answer_list = [num if num < answer_number else num - 1 for num in answer_list]
@@ -162,11 +166,11 @@ async def remove_answer(update: Update, context: CallbackContext):
 
         save_bot_state()
         await update.message.reply_text(f"Ответ №{answer_number} удален.")
-
+        await show_leaderboard(update, context)  # Показываем обновленную таблицу
     except (ValueError, IndexError):
-        await update.message.reply_text("Используйте: /минус <номер ответа>")
+        await update.message.reply_text("Используйте: `/минус <номер ответа>`")
     except Exception as e:
-        logger.error(f"Error in remove_answer: {e}")
+        logger.error(f"Ошибка в remove_answer: {e}")
         await update.message.reply_text("Произошла ошибка при удалении ответа.")
 
 async def roll_winner(update: Update, context: CallbackContext):
