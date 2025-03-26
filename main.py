@@ -2,6 +2,7 @@ import os
 import logging
 import random
 import json
+import re
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
@@ -55,8 +56,9 @@ def load_bot_state():
             user_answers = state.get("user_answers", {})
             answer_list = state.get("answer_list", [])
             roll_pool = state.get("roll_pool", [])
+        logging.info(f"🔄 Данные загружены: {state}")  # <-- Добавлен лог
     except (FileNotFoundError, json.JSONDecodeError):
-        logger.error(f"Ошибка при чтении {ANSWERS_FILE}. Используются пустые значения.")
+        logging.error(f"❌ Ошибка при чтении {ANSWERS_FILE}. Используются пустые значения.")
         user_answers, answer_list, roll_pool = {}, [], []
 
 # Загрузка данных при старте
@@ -73,42 +75,29 @@ async def start(update: Update, context: CallbackContext):
         "/rnr - розыгрыш победителя"
     )
 
+import re
+
 async def _format_leaderboard(user_answers, context):
-    """Форматирование таблицы лидеров"""
+    """Форматирование таблицы лидеров с защитой от ошибок Markdown"""
     if not user_answers:
-        return "🏆 Таблица лидеров пуста."
+        return "🏆 *Таблица рейтинга пуста.*"
 
     leaderboard = "🏆 *Таблица лидеров* 🏆\n\n"
 
-    # Создаем список всех ответов с текстом и пользователем
-    all_answers_with_text = []
-    for user_id, answers in user_answers.items():
+    sorted_users = sorted(user_answers.items(), key=lambda item: len(item[1]), reverse=True)
+
+    def escape_markdown(text):
+        """Экранирует спецсимволы для MarkdownV2"""
+        return re.sub(r'([_*\[\]()~`>#+\-=|{}.!])', r'\\\1', text)
+
+    for i, (user_id, answers) in enumerate(sorted_users, start=1):
         try:
             user = await context.bot.get_chat(user_id)
-            username = f"@{user.username}" if user.username else user.full_name
+            username = f"@{user.username}" if user.username else escape_markdown(user.full_name)
         except Exception:
             username = f"ID {user_id}"
-        for answer in answers:
-            all_answers_with_text.append((answer["number"], username, answer["text"]))
 
-    all_answers_with_text.sort(key=lambda item: item[0])  # Сортируем по номеру
-
-    for number, username, text in all_answers_with_text:
-        leaderboard += f"{number}. {username} - {text}\n"
-
-    leaderboard += "\n📊 *Сводка по баллам:*\n"
-    user_scores = {}
-    for user_id, answers in user_answers.items():
-        try:
-            user = await context.bot.get_chat(user_id)
-            username = f"@{user.username}" if user.username else user.full_name
-        except Exception:
-            username = f"ID {user_id}"
-        user_scores[username] = len(answers)
-
-    sorted_scores = sorted(user_scores.items(), key=lambda item: item[1], reverse=True)
-    for username, score in sorted_scores:
-        leaderboard += f"{username} — {score} балл{'а' if score % 10 == 1 and score % 100 != 11 else 'ов'}\n"
+        leaderboard += f"{i}\\) {username} — *{len(answers)}* баллов\n"
 
     return leaderboard
 
@@ -117,8 +106,10 @@ async def show_leaderboard(update: Update, context: CallbackContext):
     if update.effective_user.id not in whitelist:
         return
 
-    leaderboard = await _format_leaderboard(user_answers, context)  # Передаем context
-    await update.message.reply_text(leaderboard, parse_mode='Markdown')
+    leaderboard = await _format_leaderboard(user_answers, context)
+    
+    # Теперь текст не ломает Telegram API
+    await update.message.reply_text(leaderboard, parse_mode='MarkdownV2')
     save_bot_state()
     
 async def add_answer(update: Update, context: CallbackContext):
