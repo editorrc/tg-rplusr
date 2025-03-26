@@ -80,16 +80,35 @@ async def _format_leaderboard(user_answers, context):
 
     leaderboard = "🏆 *Таблица лидеров* 🏆\n\n"
 
-    sorted_users = sorted(user_answers.items(), key=lambda item: len(item[1]), reverse=True)
-
-    for i, (user_id, answers) in enumerate(sorted_users, start=1):
+    # Создаем список всех ответов с текстом и пользователем
+    all_answers_with_text = []
+    for user_id, answers in user_answers.items():
         try:
             user = await context.bot.get_chat(user_id)
             username = f"@{user.username}" if user.username else user.full_name
         except Exception:
             username = f"ID {user_id}"
+        for answer in answers:
+            all_answers_with_text.append((answer["number"], username, answer["text"]))
 
-        leaderboard += f"{i}. {username} - {len(answers)} баллов\n"
+    all_answers_with_text.sort(key=lambda item: item[0])  # Сортируем по номеру
+
+    for number, username, text in all_answers_with_text:
+        leaderboard += f"{number}. {username} - {text}\n"
+
+    leaderboard += "\n📊 *Сводка по баллам:*\n"
+    user_scores = {}
+    for user_id, answers in user_answers.items():
+        try:
+            user = await context.bot.get_chat(user_id)
+            username = f"@{user.username}" if user.username else user.full_name
+        except Exception:
+            username = f"ID {user_id}"
+        user_scores[username] = len(answers)
+
+    sorted_scores = sorted(user_scores.items(), key=lambda item: item[1], reverse=True)
+    for username, score in sorted_scores:
+        leaderboard += f"{username} — {score} балл{'а' if score % 10 == 1 and score % 100 != 11 else 'ов'}\n"
 
     return leaderboard
 
@@ -103,27 +122,53 @@ async def show_leaderboard(update: Update, context: CallbackContext):
     save_bot_state()
     
 async def add_answer(update: Update, context: CallbackContext):
-    """Добавление ответа или показ таблицы лидеров"""
-    if update.effective_user.id not in whitelist:
-        return
+    """Добавление ответа"""
+    try:
+        if update.effective_user.id not in whitelist:
+            return
 
-    if update.message.reply_to_message:
-        # Добавление балла
-        user_id = update.message.reply_to_message.from_user.id
-        answer_number = len(answer_list) + 1
+        command = update.message.text.strip().lower()
 
-        answer_list.append(answer_number)
-        roll_pool.append(answer_number)
+        if command in ["++", "плюс", "/add", "/plus"]:
+            if update.message.reply_to_message:
+                if len(answer_list) >= 100:
+                    await update.message.reply_text("Достигнут лимит в 100 ответов.")
+                    return
 
-        if user_id not in user_answers:
-            user_answers[user_id] = []
-        user_answers[user_id].append(answer_number)
+                user_id = update.message.reply_to_message.from_user.id
+                answer_number = len(answer_list) + 1
+                message_text = update.message.reply_to_message.text
 
-        await update.message.reply_text(f"Балл №{answer_number} добавлен пользователю ID {user_id}")
-        save_bot_state()
-    else:
-        # Если `++` без ответа — показать таблицу лидеров
-        await show_leaderboard(update, context)
+                answer_data = {"number": answer_number, "text": message_text}
+                answer_list.append(answer_data)
+                roll_pool.append(answer_number)
+
+                if user_id not in user_answers:
+                    user_answers[user_id] = []
+                user_answers[user_id].append(answer_data)
+
+                try:
+                    user = await context.bot.get_chat(user_id)
+                    username = f"@{user.username}" if user.username else user.full_name
+                except Exception:
+                    username = f"ID {user_id}"
+
+                total_answers = len(user_answers[user_id])
+                await update.message.reply_text(f"Ответ пользователя {username} добавлен. Всего ответов: {total_answers} балл{'а' if total_answers % 10 == 1 and total_answers % 100 != 11 else 'ов'}.")
+                await show_leaderboard(update, context)  # Показываем таблицу после добавления
+                save_bot_state()
+            else:
+                await show_leaderboard(update, context)
+
+        elif command in ["/rprlb", "/rpr_table"]:
+            await show_leaderboard(update, context)
+
+        else:
+            await update.message.reply_text("Используйте команду /плюс или ++.")
+
+    except Exception as e:
+        logger.error(f"Ошибка в add_answer: {e}")
+        await update.message.reply_text("Ошибка при добавлении ответа.")
 
 async def remove_answer(update: Update, context: CallbackContext):
     """Удаление ответа по номеру"""
