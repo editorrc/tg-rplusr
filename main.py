@@ -63,6 +63,16 @@ def load_bot_state():
 whitelist = load_whitelist()
 load_bot_state()
 
+async def start(update: Update, context: CallbackContext):
+    """Стартовая команда"""
+    await update.message.reply_text(
+        "Привет! Я бот для учета правильных ответов и розыгрыша.\n"
+        "Основные команды:\n"
+        "++ - добавить ответ\n"
+        "/rprlb - показать таблицу лидеров\n"
+        "/rnr - розыгрыш победителя"
+    )
+
 async def _format_leaderboard(user_answers, context):
     """Форматирование таблицы лидеров"""
     if not user_answers:
