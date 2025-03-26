@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 # Глобальные переменные для хранения состояния
 user_answers = {}
-answer_list =
-roll_pool =
+answer_list = []
+roll_pool = []
 
 def load_whitelist():
     """Загрузка белого списка"""
