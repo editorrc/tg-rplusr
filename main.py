@@ -284,7 +284,7 @@ def main():
     )
 
     # Регистрация обработчиков команд
-    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("rprun", start))
     application.add_handler(CommandHandler("rprlb", show_leaderboard))
     application.add_handler(CommandHandler("rpr_table", show_leaderboard))
     
@@ -293,7 +293,7 @@ def main():
     application.add_handler(CommandHandler("минус", remove_answer))
     
     # Розыгрыш и управление
-    application.add_handler(CommandHandler("rnr", roll_winner))
+    application.add_handler(CommandHandler("rpr", roll_winner))
     application.add_handler(CommandHandler("мрр", modify_roll))
     
     # Управление белым списком
