@@ -273,7 +273,9 @@ def main():
 
     # Обработчики для добавления и удаления ответов (теперь с альтернативными командами)
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^\+\+$|^плюс$|^/add$|^/plus$"), add_answer))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^минус$|^/минус$|^/remove$|^/del$"), remove_answer))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^минус$|^/минус$"), remove_answer))
+    application.add_handler(CommandHandler("remove", remove_answer))
+    application.add_handler(CommandHandler("del", remove_answer))
 
     # Розыгрыш и управление
     application.add_handler(CommandHandler("rpr", roll_winner))
