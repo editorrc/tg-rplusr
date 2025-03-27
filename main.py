@@ -7,6 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
 
 # Конфигурация
 TOKEN = os.getenv("BOT_TOKEN")
@@ -44,17 +45,32 @@ def get_filename(chat_id, game_number="default"):
 
 def find_file_id(service, filename, parent_folder_id=None):
     """Поиск файла на Google Диске."""
-    query = f"name='{filename}'"
+    query = f"name='{filename}' and trashed=false"
     if parent_folder_id:
         query += f" and '{parent_folder_id}' in parents"
     try:
         results = service.files().list(q=query, fields="files(id)").execute()
         items = results.get('files', [])
-        if items:
-            return items[0]['id']
-        return None
+        return items[0]['id'] if items else None
     except HttpError as error:
-        logger.error(f"Произошла ошибка при поиске файла: {error}")
+        logger.error(f"Ошибка при поиске файла: {error}")
+        return None
+
+def create_empty_json_on_drive(service, filename, parent_folder_id=None):
+    """Создает пустой JSON-файл на Google Диске."""
+    file_metadata = {'name': filename, 'mimeType': 'application/json'}
+    if parent_folder_id:
+        file_metadata['parents'] = [parent_folder_id]
+
+    empty_json = io.BytesIO(json.dumps({}).encode('utf-8'))
+    media = MediaIoBaseUpload(empty_json, mimetype="application/json")
+
+    try:
+        file = service.files().create(body=file_metadata, media_body=media).execute()
+        logger.info(f"Создан пустой JSON-файл: {filename}, ID: {file['id']}")
+        return file['id']
+    except HttpError as error:
+        logger.error(f"Ошибка при создании файла: {error}")
         return None
 
 def load_bot_state(chat_id, game_number="default"):
@@ -68,23 +84,27 @@ def load_bot_state(chat_id, game_number="default"):
     filename = get_filename(chat_id, game_number)
     file_id = find_file_id(service, filename, BASE_FOLDER_ID)
 
+    if not file_id:
+        logger.info(f"Файл {filename} не найден. Создаем пустой JSON...")
+        file_id = create_empty_json_on_drive(service, filename, BASE_FOLDER_ID)
+    
     if file_id:
         try:
             request = service.files().get_media(fileId=file_id)
-            file = request.execute()
-            state = json.loads(file.decode('utf-8'))
+            file_content = request.execute()
+            state = json.loads(file_content.decode('utf-8'))
             user_answers = state.get("user_answers", {})
             answer_list = state.get("answer_list", [])
             roll_pool = state.get("roll_pool", [])
-            logger.info(f"Состояние бота загружено из Google Диска (ID файла: {file_id}).")
+            logger.info(f"Состояние бота загружено из Google Диска (ID: {file_id}).")
         except HttpError as error:
-            logger.error(f"Произошла ошибка при загрузке файла из Google Диска: {error}")
+            logger.error(f"Ошибка загрузки файла с Google Диска: {error}")
             user_answers, answer_list, roll_pool = {}, [], []
         except json.JSONDecodeError:
-            logger.error(f"Файл на Google Диске содержит некорректный JSON: {filename}")
+            logger.error(f"Файл {filename} содержит некорректный JSON.")
             user_answers, answer_list, roll_pool = {}, [], []
     else:
-        logger.info(f"Файл состояния не найден на Google Диске, используются пустые значения: {filename}")
+        logger.error(f"Не удалось создать файл {filename} на Google Диске.")
         user_answers, answer_list, roll_pool = {}, [], []
 
 def save_bot_state(chat_id, game_number="default"):
@@ -96,29 +116,29 @@ def save_bot_state(chat_id, game_number="default"):
 
     filename = get_filename(chat_id, game_number)
     file_id = find_file_id(service, filename, BASE_FOLDER_ID)
+
     state = {
         "user_answers": user_answers,
         "answer_list": answer_list,
         "roll_pool": roll_pool
     }
-    file_metadata = {'name': filename}
-    if BASE_FOLDER_ID:
-        file_metadata['parents'] = [BASE_FOLDER_ID]
-    media = json.dumps(state).encode('utf-8')
+    json_data = io.BytesIO(json.dumps(state, ensure_ascii=False, indent=4).encode('utf-8'))
+    media = MediaIoBaseUpload(json_data, mimetype="application/json")
 
     try:
         if file_id:
-            # Обновление существующего файла
             request = service.files().update(fileId=file_id, media_body=media)
             updated_file = request.execute()
-            logger.info(f"Состояние бота обновлено на Google Диске (ID файла: {updated_file.get('id')}).")
+            logger.info(f"Состояние обновлено на Google Диске (ID: {updated_file.get('id')}).")
         else:
-            # Создание нового файла
-            request = service.files().create(media_body=media, body=file_metadata)
+            file_metadata = {'name': filename, 'mimeType': 'application/json'}
+            if BASE_FOLDER_ID:
+                file_metadata['parents'] = [BASE_FOLDER_ID]
+            request = service.files().create(body=file_metadata, media_body=media)
             created_file = request.execute()
-            logger.info(f"Состояние бота сохранено на Google Диске (ID файла: {created_file.get('id')}).")
+            logger.info(f"Состояние сохранено на Google Диске (ID: {created_file.get('id')}).")
     except HttpError as error:
-        logger.error(f"Произошла ошибка при сохранении файла на Google Диске: {error}")
+        logger.error(f"Ошибка сохранения файла на Google Диске: {error}")
 
 def load_whitelist():
     """Загрузка белого списка (локально)"""
