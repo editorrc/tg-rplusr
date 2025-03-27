@@ -2,6 +2,7 @@ import os
 import logging
 import random
 import json
+import io
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from google.oauth2 import service_account
