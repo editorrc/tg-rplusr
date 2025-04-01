@@ -43,7 +43,7 @@ async def main():
     """Создание и запуск бота."""
     application = (
         Application.builder()
-        .token(TOKEN)
+        .token(os.getenv("BOT_TOKEN"))  # Use os.getenv directly
         .connect_timeout(20)
         .read_timeout(20)
         .build()
@@ -54,7 +54,10 @@ async def main():
     application.add_handler(CommandHandler("summon", summon))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-    await application.run_polling()
+    try:
+        await application.run_polling()
+    finally:
+        await application.shutdown()  # Ensure proper shutdown
 
 if __name__ == "__main__":
     import asyncio
