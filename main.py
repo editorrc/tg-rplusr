@@ -1,11 +1,17 @@
 import logging
 import os
-import telebot
-from telebot import types
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Токен бота из переменных окружения
-ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID")  # ID чата для рассылки
+# Получаем токен и ID администратора из переменных окружения
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID")
 
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Проверка наличия токена и ID администратора
 if not TOKEN:
     raise ValueError("Необходимо установить TELEGRAM_BOT_TOKEN в переменных окружения")
 if not ADMIN_CHAT_ID:
@@ -16,44 +22,56 @@ try:
 except ValueError:
     raise ValueError("TELEGRAM_ADMIN_CHAT_ID должен быть числом")
 
-bot = telebot.TeleBot(TOKEN)
-logging.basicConfig(level=logging.INFO)
-
-def is_admin(chat_id):
+# Функция для проверки, является ли пользователь администратором
+def is_admin(chat_id: int) -> bool:
     return chat_id == ADMIN_CHAT_ID
 
-@bot.message_handler(commands=["start"])
-def start_cmd(message):
-    bot.send_message(message.chat.id, "Привет! Я бот для рассылки сообщений. Используйте /broadcast для рассылки.")
+# Функция стартового сообщения
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('Привет! Я бот для рассылки сообщений. Используйте /broadcast для рассылки.')
 
-@bot.message_handler(commands=["broadcast"])
-def manual_broadcast(message):
-    if not is_admin(message.chat.id):
-        bot.send_message(message.chat.id, "У вас нет прав на выполнение этой команды.")
+# Функция для команды /broadcast
+def broadcast(update: Update, context: CallbackContext) -> None:
+    if not is_admin(update.message.chat_id):
+        update.message.reply_text('У вас нет прав на выполнение этой команды.')
         return
-    bot.send_message(message.chat.id, "Введите сообщение для рассылки:")
-    bot.register_next_step_handler(message, process_broadcast)
+    update.message.reply_text('Введите сообщение для рассылки:')
+    return  # ожидаем ввода сообщения для рассылки
 
-def process_broadcast(message):
-    if not message.text:
-        bot.send_message(message.chat.id, "Сообщение не может быть пустым!")
+# Функция обработки ввода сообщения для рассылки
+def process_broadcast(update: Update, context: CallbackContext) -> None:
+    text = update.message.text
+    if not text:
+        update.message.reply_text('Сообщение не может быть пустым!')
         return
-    send_broadcast(message.text)
-    bot.send_message(message.chat.id, "Рассылка завершена!")
+    send_broadcast(update, context, text)
 
-def send_broadcast(text):
+# Функция для отправки рассылки
+def send_broadcast(update: Update, context: CallbackContext, text: str) -> None:
     try:
-        bot.send_message(ADMIN_CHAT_ID, text)
-        logging.info("Сообщение успешно отправлено!")
-    except telebot.apihelper.ApiException as e:
-        logging.error(f"Ошибка при отправке: {e}")
-
-def main():
-    logging.info("Бот запущен")
-    try:
-        bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
+        context.bot.send_message(ADMIN_CHAT_ID, text)
+        update.message.reply_text('Рассылка завершена!')
+        logger.info(f"Сообщение отправлено: {text}")
     except Exception as e:
-        logging.error(f"Ошибка в работе бота: {e}")
+        logger.error(f"Ошибка при отправке: {e}")
+        update.message.reply_text('Произошла ошибка при отправке рассылки.')
 
-if __name__ == "__main__":
+# Основная функция для запуска бота
+def main() -> None:
+    updater = Updater(TOKEN)
+
+    dispatcher = updater.dispatcher
+
+    # Обработчики команд
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("broadcast", broadcast))
+
+    # Обработчик сообщений
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, process_broadcast))
+
+    # Запуск бота
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
     main()
