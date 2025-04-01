@@ -72,10 +72,9 @@ async def main():
 if __name__ == "__main__":
     import asyncio
 
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    application = asyncio.run(main())  # Создаем приложение
 
-    loop.run_until_complete(main())
+    try:
+        application.run_polling()  # Запускаем бота
+    except KeyboardInterrupt:
+        print("Бот остановлен вручную.")
