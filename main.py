@@ -2,7 +2,7 @@ import os
 import logging
 import asyncio
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from telegram.ext import Application, CommandHandler, CallbackContext
 
 # Конфигурация
 TOKEN = os.getenv("BOT_TOKEN")
@@ -15,50 +15,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def summon(update: Update, context: CallbackContext) -> None:
-    """Отправляет сообщение в целевой чат."""
-    message_text = "Внимание всем! Просьба заглянуть в чат."
-    users_to_tag = ["@username1", "@username2", "@username3"]
-    full_message = f"{message_text} {' '.join(users_to_tag)}"
-
+async def send_message_command(update: Update, context: CallbackContext) -> None:
+    """Отправляет сообщение в целевой чат по команде /send."""
+    message_text = "Это тестовое сообщение от упрощенного бота."
     try:
-        await context.bot.send_message(chat_id=TARGET_CHAT_ID, text=full_message)
-        await update.message.reply_text(f"Сообщение отправлено в чат с ID {TARGET_CHAT_ID}")
+        await context.bot.send_message(chat_id=TARGET_CHAT_ID, text=message_text)
+        await update.message.reply_text("Сообщение отправлено!")
     except Exception as e:
         await update.message.reply_text(f"Ошибка при отправке: {e}")
-
-async def start(update: Update, context: CallbackContext) -> None:
-    """Обработчик команды /start."""
-    await update.message.reply_text("Привет! Я бот для призыва пользователей.")
-
-async def help_command(update: Update, context: CallbackContext) -> None:
-    """Обработчик команды /help."""
-    await update.message.reply_text("Используйте /summon для призыва пользователей.")
-
-async def echo(update: Update, context: CallbackContext) -> None:
-    """Эхо-обработчик."""
-    await update.message.reply_text(update.message.text)
 
 async def main():
     """Создание и запуск бота."""
     application = (
         Application.builder()
-        .token(os.getenv("BOT_TOKEN"))  # Use os.getenv directly
+        .token(TOKEN)
         .connect_timeout(20)
         .read_timeout(20)
         .build()
     )
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("summon", summon))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    # Добавляем обработчик для команды /send
+    application.add_handler(CommandHandler("send", send_message_command))
 
-    try:
-        await application.run_polling()
-    finally:
-        await application.shutdown()  # Ensure proper shutdown
+    await application.run_polling()
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())
