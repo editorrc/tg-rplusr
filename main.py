@@ -1,7 +1,8 @@
 import logging
 import os
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackContext
+from telegram.ext.filters import Filters  # Исправили импорт
 
 # Получаем токен и ID администратора из переменных окружения
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
