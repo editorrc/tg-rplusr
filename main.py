@@ -54,9 +54,8 @@ async def main():
     application.add_handler(CommandHandler("summon", summon))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-    await application.initialize()
-    await application.start()
     await application.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())  # Просто вызываем main() через asyncio.run()
+    import asyncio
+    asyncio.run(main())
