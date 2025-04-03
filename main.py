@@ -175,13 +175,12 @@ async def start(update: Update, context: CallbackContext):
 
 async def _format_leaderboard(user_answers, context):
     """Форматирование таблицы лидеров"""
-    logger.info(f"Состояние user_answers в _format_leaderboard: {user_answers}") # Добавлено логирование
+    logger.info(f"Состояние user_answers в _format_leaderboard: {user_answers}")
     if not user_answers:
         return "🏆 Таблица лидеров пуста."
 
     leaderboard = "🏆 *Таблица лидеров* 🏆\n\n"
 
-    # Создаем список всех ответов с текстом и пользователем
     all_answers_with_text = []
     for user_id, answers in user_answers.items():
         try:
@@ -192,12 +191,18 @@ async def _format_leaderboard(user_answers, context):
         for answer in answers:
             all_answers_with_text.append((answer["number"], username, answer["text"]))
 
-    all_answers_with_text.sort(key=lambda item: item[0])  # Сортируем по номеру
+    # Сортируем ответы по номеру (порядку добавления)
+    all_answers_with_text.sort(key=lambda item: item[0])
 
-    for number, username, text in all_answers_with_text:
-        leaderboard += f"{number}. {username} - {text}\n"
+    # Перенумеруем ответы при выводе
+    leaderboard_entries = []
+    current_number = 1
+    for _, username, text in all_answers_with_text:
+        leaderboard_entries.append(f"{current_number}. {username} - {text}")
+        current_number += 1
+    leaderboard += "\n".join(leaderboard_entries)
 
-    leaderboard += "\n📊 *Сводка по баллам:*\n"
+    leaderboard += "\n\n📊 *Сводка по баллам:*\n"
     user_scores = {}
     for user_id, answers in user_answers.items():
         try:
@@ -206,7 +211,7 @@ async def _format_leaderboard(user_answers, context):
         except Exception:
             username = f"ID {user_id}"
         user_scores[username] = len(answers)
-
+    logger.info(f"Рассчитанные user_scores: {user_scores}")
     sorted_scores = sorted(user_scores.items(), key=lambda item: item[1], reverse=True)
     for username, score in sorted_scores:
         leaderboard += f"{username} — {score} балл{'а' if 2 <= score <= 4 else 'ов' if score >= 5 or score == 0 else ''}\n"
@@ -333,12 +338,19 @@ async def roll_winner(update: Update, context: CallbackContext):
 
     winner_number = random.choice(roll_pool)
     winner_user_id = None
+    winning_answer_text = None
     for user_id, answers in user_answers.items():
         for answer in answers:
             if answer["number"] == winner_number:
                 winner_user_id = user_id
                 break
         if winner_user_id:
+            break
+
+    # Находим текст выигрышного ответа
+    for answer in answer_list:
+        if answer["number"] == winner_number:
+            winning_answer_text = answer["text"]
             break
 
     if winner_user_id:
@@ -348,7 +360,10 @@ async def roll_winner(update: Update, context: CallbackContext):
         except Exception:
             winner_username = f"ID {winner_user_id}"
 
-        await update.message.reply_text(f"Победитель: {winner_number} ({winner_username})")
+        if winning_answer_text:
+            await update.message.reply_text(f"🎉 Выиграл: {winner_username}, ответ №{winner_number} '{winning_answer_text}'")
+        else:
+            await update.message.reply_text(f"🎉 Выиграл: {winner_username}, ответ №{winner_number}")
     else:
         await update.message.reply_text("Не удалось определить победителя.")
 
