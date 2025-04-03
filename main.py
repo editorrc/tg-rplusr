@@ -260,8 +260,10 @@ async def add_answer(update: Update, context: CallbackContext):
                     username = f"ID {user_id}"
 
                 total_answers = len(user_answers[user_id])
-                await update.message.reply_text(f"Ответ пользователя {username} добавлен. Всего ответов: {total_answers} балл{'а' if total_answers == 1 else 'а' if 2 <= total_answers <= 4 else 'ов'}.")
+                await update.message.reply_text(f"Ответ пользователя {username} добавлен. Всего ответов: {total_answers} балл{'а' if 2 <= total_answers <= 4 else 'ов' if total_answers >= 5 or total_answers == 0 else ''}.")
                 logger.info(f"Состояние user_answers перед сохранением: {user_answers}") # Добавлено логирование
+                logger.info(f"Состояние answer_list перед сохранением: {answer_list}") # Добавлено логирование
+                logger.info(f"Состояние roll_pool перед сохранением: {roll_pool}") # Добавлено логирование
                 await show_leaderboard(update, context)
                 save_bot_state(chat_id)
                 logger.info(f"Состояние user_answers после сохранения: {user_answers}") # Добавлено логирование
