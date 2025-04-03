@@ -213,18 +213,6 @@ async def _format_leaderboard(user_answers, context):
 
     return leaderboard
 
-async def show_leaderboard(update: Update, context: CallbackContext):
-    """Показ таблицы лидеров"""
-    if update.effective_user.id not in whitelist:
-        return
-
-    chat_id = update.effective_chat.id
-    load_bot_state(chat_id)
-    logger.info(f"Состояние user_answers в show_leaderboard после загрузки: {user_answers}") # Добавлено логирование
-    leaderboard = await _format_leaderboard(user_answers, context)
-    await update.message.reply_text(leaderboard, parse_mode='Markdown')
-    save_bot_state(chat_id)
-
 async def add_answer(update: Update, context: CallbackContext):
     """Добавление ответа"""
     if update.effective_user.id not in whitelist:
@@ -279,6 +267,18 @@ async def add_answer(update: Update, context: CallbackContext):
     except Exception as e:
         logger.error(f"Ошибка в add_answer: {e}")
         await update.message.reply_text("Ошибка при добавлении ответа.")
+
+async def show_leaderboard(update: Update, context: CallbackContext):
+    """Показ таблицы лидеров"""
+    if update.effective_user.id not in whitelist:
+        return
+
+    chat_id = update.effective_chat.id
+    # load_bot_state(chat_id) # Убираем лишнюю загрузку
+    logger.info(f"Состояние user_answers в show_leaderboard после (предполагаемой) загрузки: {user_answers}") # Логирование
+    leaderboard = await _format_leaderboard(user_answers, context)
+    await update.message.reply_text(leaderboard, parse_mode='Markdown')
+    save_bot_state(chat_id)
 
 async def remove_answer(update: Update, context: CallbackContext):
     """Удаление ответа"""
