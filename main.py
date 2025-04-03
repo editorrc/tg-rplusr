@@ -1,4 +1,3 @@
-
 import os
 import logging
 import random
@@ -99,9 +98,9 @@ def load_bot_state(chat_id, game_number="default"):
             answer_list = state.get("answer_list", [])
             roll_pool = state.get("roll_pool", [])
             logger.info(f"Состояние бота загружено из Google Диска (ID: {file_id}).")
-            logger.info(f"Состояние user_answers после загрузки: {user_answers}") # Добавлено логирование
-            logger.info(f"Состояние answer_list после загрузки: {answer_list}") # Добавлено логирование
-            logger.info(f"Состояние roll_pool после загрузки: {roll_pool}") # Добавлено логирование
+            logger.info(f"Состояние user_answers после загрузки: {user_answers}")
+            logger.info(f"Состояние answer_list после загрузки: {answer_list}")
+            logger.info(f"Состояние roll_pool после загрузки: {roll_pool}")
         except HttpError as error:
             logger.error(f"Ошибка загрузки файла с Google Диска: {error}")
             user_answers, answer_list, roll_pool = {}, [], []
@@ -135,9 +134,9 @@ def save_bot_state(chat_id, game_number="default"):
             request = service.files().update(fileId=file_id, media_body=media)
             updated_file = request.execute()
             logger.info(f"Состояние обновлено на Google Диске (ID: {updated_file.get('id')}).")
-            logger.info(f"Состояние user_answers после сохранения: {user_answers}") # Добавлено логирование
-            logger.info(f"Состояние answer_list после сохранения: {answer_list}") # Добавлено логирование
-            logger.info(f"Состояние roll_pool после сохранения: {roll_pool}") # Добавлено логирование
+            logger.info(f"Состояние user_answers после сохранения: {user_answers}")
+            logger.info(f"Состояние answer_list после сохранения: {answer_list}")
+            logger.info(f"Состояние roll_pool после сохранения: {roll_pool}")
         else:
             file_metadata = {'name': filename, 'mimeType': 'application/json'}
             if BASE_FOLDER_ID:
@@ -145,9 +144,9 @@ def save_bot_state(chat_id, game_number="default"):
             request = service.files().create(body=file_metadata, media_body=media)
             created_file = request.execute()
             logger.info(f"Состояние сохранено на Google Диске (ID: {created_file.get('id')}).")
-            logger.info(f"Состояние user_answers после создания: {user_answers}") # Добавлено логирование
-            logger.info(f"Состояние answer_list после создания: {answer_list}") # Добавлено логирование
-            logger.info(f"Состояние roll_pool после создания: {roll_pool}") # Добавлено логирование
+            logger.info(f"Состояние user_answers после создания: {user_answers}")
+            logger.info(f"Состояние answer_list после создания: {answer_list}")
+            logger.info(f"Состояние roll_pool после создания: {roll_pool}")
     except HttpError as error:
         logger.error(f"Ошибка сохранения файла на Google Диске: {error}")
 
