@@ -89,7 +89,7 @@ def load_bot_state(chat_id, game_number="default"):
     if not file_id:
         logger.info(f"Файл {filename} не найден. Создаем пустой JSON...")
         file_id = create_empty_json_on_drive(service, filename, BASE_FOLDER_ID)
-    
+
     if file_id:
         try:
             request = service.files().get_media(fileId=file_id)
@@ -99,6 +99,9 @@ def load_bot_state(chat_id, game_number="default"):
             answer_list = state.get("answer_list", [])
             roll_pool = state.get("roll_pool", [])
             logger.info(f"Состояние бота загружено из Google Диска (ID: {file_id}).")
+            logger.info(f"Состояние user_answers после загрузки: {user_answers}") # Добавлено логирование
+            logger.info(f"Состояние answer_list после загрузки: {answer_list}") # Добавлено логирование
+            logger.info(f"Состояние roll_pool после загрузки: {roll_pool}") # Добавлено логирование
         except HttpError as error:
             logger.error(f"Ошибка загрузки файла с Google Диска: {error}")
             user_answers, answer_list, roll_pool = {}, [], []
@@ -132,6 +135,9 @@ def save_bot_state(chat_id, game_number="default"):
             request = service.files().update(fileId=file_id, media_body=media)
             updated_file = request.execute()
             logger.info(f"Состояние обновлено на Google Диске (ID: {updated_file.get('id')}).")
+            logger.info(f"Состояние user_answers после сохранения: {user_answers}") # Добавлено логирование
+            logger.info(f"Состояние answer_list после сохранения: {answer_list}") # Добавлено логирование
+            logger.info(f"Состояние roll_pool после сохранения: {roll_pool}") # Добавлено логирование
         else:
             file_metadata = {'name': filename, 'mimeType': 'application/json'}
             if BASE_FOLDER_ID:
@@ -139,6 +145,9 @@ def save_bot_state(chat_id, game_number="default"):
             request = service.files().create(body=file_metadata, media_body=media)
             created_file = request.execute()
             logger.info(f"Состояние сохранено на Google Диске (ID: {created_file.get('id')}).")
+            logger.info(f"Состояние user_answers после создания: {user_answers}") # Добавлено логирование
+            logger.info(f"Состояние answer_list после создания: {answer_list}") # Добавлено логирование
+            logger.info(f"Состояние roll_pool после создания: {roll_pool}") # Добавлено логирование
     except HttpError as error:
         logger.error(f"Ошибка сохранения файла на Google Диске: {error}")
 
@@ -161,15 +170,13 @@ whitelist = load_whitelist()
 async def start(update: Update, context: CallbackContext):
     """Стартовая команда"""
     await update.message.reply_text(
-        "Привет! Я бот для учета правильных ответов и розыгрыша.\\n"
-        "Основные команды:\\n"
-        "++ - добавить ответ\\n"
-        "/rprlb - показать таблицу лидеров\\n"
-        "/rpr - розыгрыш победителя"
+        "Привет! Я бот для учета правильных ответов и розыгрыша. "
+        "Основные команды: ++ - добавить ответ /rprlb - показать таблицу лидеров /rpr - розыгрыш победителя"
     )
 
 async def _format_leaderboard(user_answers, context):
     """Форматирование таблицы лидеров"""
+    logger.info(f"Состояние user_answers в _format_leaderboard: {user_answers}") # Добавлено логирование
     if not user_answers:
         return "🏆 Таблица лидеров пуста."
 
@@ -203,7 +210,7 @@ async def _format_leaderboard(user_answers, context):
 
     sorted_scores = sorted(user_scores.items(), key=lambda item: item[1], reverse=True)
     for username, score in sorted_scores:
-        leaderboard += f"{username} — {score} балл{'а' if score % 10 == 1 and score % 100 != 11 else 'ов'}\n"
+        leaderboard += f"{username} — {score} балл{'а' if 2 <= score <= 4 else 'ов' if score >= 5 or score == 0 else ''}\n"
 
     return leaderboard
 
@@ -214,6 +221,7 @@ async def show_leaderboard(update: Update, context: CallbackContext):
 
     chat_id = update.effective_chat.id
     load_bot_state(chat_id)
+    logger.info(f"Состояние user_answers в show_leaderboard после загрузки: {user_answers}") # Добавлено логирование
     leaderboard = await _format_leaderboard(user_answers, context)
     await update.message.reply_text(leaderboard, parse_mode='Markdown')
     save_bot_state(chat_id)
@@ -253,9 +261,11 @@ async def add_answer(update: Update, context: CallbackContext):
                     username = f"ID {user_id}"
 
                 total_answers = len(user_answers[user_id])
-                await update.message.reply_text(f"Ответ пользователя {username} добавлен. Всего ответов: {total_answers} балл{'а' if total_answers % 10 == 1 and total_answers % 100 != 11 else 'ов'}.")
+                await update.message.reply_text(f"Ответ пользователя {username} добавлен. Всего ответов: {total_answers} балл{'а' if total_answers == 1 else 'а' if 2 <= total_answers <= 4 else 'ов'}.")
+                logger.info(f"Состояние user_answers перед сохранением: {user_answers}") # Добавлено логирование
                 await show_leaderboard(update, context)
                 save_bot_state(chat_id)
+                logger.info(f"Состояние user_answers после сохранения: {user_answers}") # Добавлено логирование
             else:
                 await show_leaderboard(update, context)
 
